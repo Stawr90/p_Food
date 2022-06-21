@@ -33,4 +33,37 @@ window.addEventListener('DOMContentLoaded', function() {
             });
         }
     });
+
+    const boxwrap = document.querySelector('.wrapper__box'),
+        box = boxwrap.querySelector('.box');
+        let pos = 1;
+    
+    function myAnimation() {
+        if (pos == 1) {
+            const idPlus = setInterval(goBox, 10);
+            
+            function goBox() {
+                if (pos === 92) {
+                    clearInterval(idPlus);
+                } else {
+                    pos++;
+                    box.style.left = pos + '%';
+                }  
+            }
+        } else {
+            const idMinus = setInterval(prevBox, 10);
+
+            function prevBox() {
+                if (pos == 1) {
+                    clearInterval(idMinus);
+                } else {
+                    pos--;
+                    box.style.left = pos + '%';
+                }  
+            }
+        }
+    }
+    
+    box.addEventListener('click', myAnimation);
+
 });
