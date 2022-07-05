@@ -140,12 +140,13 @@ window.addEventListener('DOMContentLoaded', function() {
 
     // Cards
     class MenuCard {
-        constructor(src, alt, title, descr, price, parentSelector) {
+        constructor(src, alt, title, descr, price, parentSelector, ...classes) {
             this.src = src;
             this.alt = alt;
             this.title = title;
             this.descr = descr;
             this.price = price;
+            this.classes = classes;
             this.parent = document.querySelector(parentSelector);
             this.transfer = 27;
             this.changeToUAH();
@@ -157,6 +158,14 @@ window.addEventListener('DOMContentLoaded', function() {
 
         render() {
             const element = document.createElement('div');
+
+            if (this.classes.length === 0) {
+                this.element = 'menu__item';
+                element.classList.add(this.element);
+            } else {
+                this.classes.forEach(className => element.classList.add(className));
+            }
+
             element.innerHTML = `
             <div class="menu__item">
                 <img src=${this.src} alt=${this.alt}>
@@ -173,32 +182,21 @@ window.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    new MenuCard(
-        "img/tabs/vegy.jpg",
-        "vegy",
-        'Меню "Фитнес"',
-        'Меню "Фитнес" - это новый подход к приготовлению блюд: больше свежих овощей и фруктов. Продукт активных и здоровых людей. Это абсолютно новый продукт с оптимальной ценой и высоким качеством!',
-        9,
-        '.menu .container'
-    ).render();
-    
-    new MenuCard(
-        "img/tabs/post.jpg",
-        "post",
-        'Меню "Постное"',
-        'Меню “Постное” - это тщательный подбор ингредиентов: полное отсутствие продуктов животного происхождения, молоко из миндаля, овса, кокоса или гречки, правильное количество белков за счет тофу и импортных вегетарианских стейков.',
-        14,
-        ".menu .container"
-    ).render();
+    const getResource = async (url) => {
+        const res = await fetch (url);
+        if (!res.ok) {
+            throw new Error(`Could not fetch ${url}, status ${res.status}`);
+        }
+        return await res.json();
+    };
 
-    new MenuCard(
-        "img/tabs/elite.jpg",
-        "elite",
-        'Меню “Премиум”',
-        'В меню “Премиум” мы используем не только красивый дизайн упаковки, но и качественное исполнение блюд. Красная рыба, морепродукты, фрукты - ресторанное меню без похода в ресторан!',
-        21,
-        ".menu .container"
-    ).render();
+    getResource('http://localhost:3000/menu')
+        .then(data => {
+            data.forEach(({img, altimg, title, descr, price
+            }) => {
+                new MenuCard(img, altimg, title, descr, price, '.menu .container').render();
+            });
+        });
 
     // Forms
     const form = document.querySelectorAll('form');
@@ -210,14 +208,23 @@ window.addEventListener('DOMContentLoaded', function() {
     };
 
     form.forEach(item => {
-        postData(item);
+        bindPostData(item);
     });
 
-    function postData(form) {
+    const postData = async (url, data) => {
+        const res = await fetch(url, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: data
+        });
+        return await res.json();
+    };
+
+    function bindPostData(form) {
         form.addEventListener('submit', (e) => {
             e.preventDefault();
 
-            const statusMessage = document.createElement('img');
+            let statusMessage = document.createElement('img');
             statusMessage.src = message.loading;
             statusMessage.style.cssText = `
                 display: block;
@@ -225,29 +232,20 @@ window.addEventListener('DOMContentLoaded', function() {
             `;
             form.insertAdjacentElement('afterend', statusMessage);
 
-            const request = new XMLHttpRequest();
-            request.open('POST', 'server.php');
-            request.setRequestHeader('Content-type', 'application/json; charset=utf-8');
             const formData = new FormData(form);
 
-            const object = {};
-            formData.forEach(function (key, value) {
-                object[key] = value;
-            });
-            const json = JSON.stringify(object);
-            
-            request.send(json);
+            const json = JSON.stringify(Object.fromEntries(formData.entries()));
 
-            request.addEventListener('load', () => {
-                if (request.status === 200) {
-                    console.log(request.response);
+            postData('http://localhost:3000/requests', json)
+                .then(data => {
+                    console.log(data);
                     showThanksModal(message.success);
-                    form.reset();
                     statusMessage.remove();
-                } else {
+                }).catch(() => {
                     showThanksModal(message.failure);
-                }
-            });
+                }).finally(() => {
+                    form.reset();
+                });
         });
     }
 
@@ -274,8 +272,4 @@ window.addEventListener('DOMContentLoaded', function() {
             closeModal();
         }, 4000);
     }
-
-    fetch('http://localhost:3000/menu')
-        .then(data => data.json())
-        .then(res => console.log(res));
 });
